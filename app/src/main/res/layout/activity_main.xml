@@ -12,6 +12,19 @@
     tools:context=".main_activity">
 
 
+    <TextView
+        android:id="@+id/cbk_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Callback Address" />
+
+    <EditText
+        android:id="@+id/callback_addr"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:inputType="textPersonName" />
+
     <ScrollView
         android:id="@+id/login_form"
         android:layout_width="match_parent"

@@ -190,6 +190,13 @@ class public_func {
         }
         return SubscriptionManager.from(context).getActiveSubscriptionInfoCount();
     }
+    static String get_callback_addr(Context context){
+        SharedPreferences sharedPreferences = context.getSharedPreferences("data",MODE_PRIVATE);
+        if (sharedPreferences.getString("callback_addr", "").toString().isEmpty()) {
+            return "";
+        }
+        return sharedPreferences.getString("callback_addr", "");
+    }
 
     static String get_sim_name_title(Context context, int slot) {
         SharedPreferences sharedPreferences = context.getSharedPreferences("data", MODE_PRIVATE);

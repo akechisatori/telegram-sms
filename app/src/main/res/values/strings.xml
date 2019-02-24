@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">Telegram SMS</string>
+    <string name="app_name" translatable="false">Telegram SMS - Mod</string>
     <string name="content">Content: </string>
     <string name="from">From: </string>
     <string name="to">To: </string>

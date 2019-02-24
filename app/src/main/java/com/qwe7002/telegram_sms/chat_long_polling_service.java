@@ -15,6 +15,7 @@ import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -332,6 +333,7 @@ public class chat_long_polling_service extends Service {
             }
 
         }
+
 
         String request_uri = public_func.get_url(bot_token, "sendMessage");
         Gson gson = new Gson();
