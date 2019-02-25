@@ -1,6 +1,7 @@
 package com.qwe7002.telegram_sms;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -12,7 +13,9 @@ import android.provider.Telephony;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.telephony.SmsMessage;
+import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 
 import com.google.gson.Gson;
@@ -29,10 +32,14 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 import static android.content.Context.MODE_PRIVATE;
+import static android.content.Context.TELEPHONY_SERVICE;
 import static android.support.v4.content.PermissionChecker.checkSelfPermission;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+
+import android.telephony.TelephonyManager;
 
 
 public class sms_receiver extends BroadcastReceiver {
@@ -51,18 +58,33 @@ public class sms_receiver extends BroadcastReceiver {
                 return;
             }
         }
+        TelephonyManager telephony = (TelephonyManager) context
+                .getSystemService(Context.TELEPHONY_SERVICE);
         Bundle bundle = intent.getExtras();
         if (bundle != null) {
             HashMap<String, Object> map = new HashMap<>();
-            ArrayList<String> slots = new ArrayList<>();
+            ArrayList<Object> slots = new ArrayList<>();
             String dual_sim = "";
+
             map.put("method","sms");
             SubscriptionManager manager = SubscriptionManager.from(context);
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
                 int slot_count = manager.getActiveSubscriptionInfoCount();
 
                 for (int i=0;i < slot_count;i++) {
-                    slots.add(public_func.get_sim_display_name(context, i));
+                    HashMap<String,Object> card = new HashMap<>();
+                    card.put("name",public_func.get_sim_display_name(context, i));
+                    SubscriptionInfo info = SubscriptionManager.from(context).getActiveSubscriptionInfoForSimSlotIndex(i);
+                    if (info == null) {
+                        if (slot_count == 1 && i == 0) {
+                            info = SubscriptionManager.from(context).getActiveSubscriptionInfoForSimSlotIndex(1);
+                        }
+                    }
+                    card.put("slot",info.getSimSlotIndex());
+                    card.put("roaming",info.getDataRoaming());
+                    card.put("number",info.getNumber());
+                    card.put("iso",info.getCountryIso());
+                    slots.add(card);
                 }
                 if (slot_count >= 2) {
                     int slot = bundle.getInt("slot", -1);
@@ -107,7 +129,6 @@ public class sms_receiver extends BroadcastReceiver {
                 String msg_address = messages[0].getOriginatingAddress();
                 map.put("timestamp",messages[0].getTimestampMillis()/1000);
 
-
                 map.put("mobile",msg_address);
 
                 final request_json request_body = new request_json();
@@ -126,6 +147,7 @@ public class sms_receiver extends BroadcastReceiver {
                 assert msg_address != null;
 
                 map.put("content",msgBody);
+
 
                 if (checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED) {
                     if (msg_address.equals(sharedPreferences.getString("trusted_phone_number", null))) {

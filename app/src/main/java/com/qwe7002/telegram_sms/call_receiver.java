@@ -7,7 +7,10 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
 import android.telephony.PhoneStateListener;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
@@ -76,14 +79,29 @@ class call_state_listener extends PhoneStateListener {
 
     private void when_miss_call() {
         HashMap<String,Object> map = new HashMap<>();
-        ArrayList<String> slots = new ArrayList<>();
+        ArrayList<Object> slots = new ArrayList<>();
         map.put("method","call");
         String dual_sim = "";
         int slot_count = public_func.get_active_card(context);
-
-        for (int i=0;i < slot_count;i++) {
-            slots.add(public_func.get_sim_display_name(context, i));
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+            for (int i=0;i < slot_count;i++) {
+                HashMap<String,Object> card = new HashMap<>();
+                card.put("name",public_func.get_sim_display_name(context, i));
+                SubscriptionInfo info = SubscriptionManager.from(context).getActiveSubscriptionInfoForSimSlotIndex(i);
+                if (info == null) {
+                    if (slot_count == 1 && i == 0) {
+                        info = SubscriptionManager.from(context).getActiveSubscriptionInfoForSimSlotIndex(1);
+                    }
+                }
+                card.put("slot",info.getSimSlotIndex());
+                card.put("roaming",info.getDataRoaming());
+                card.put("number",info.getNumber());
+                card.put("iso",info.getCountryIso());
+                slots.add(card);
+            }
         }
+
+
         map.put("current_slot",slot);
 
         map.put("slots",slots);
