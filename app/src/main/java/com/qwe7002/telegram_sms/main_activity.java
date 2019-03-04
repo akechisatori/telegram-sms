@@ -51,6 +51,7 @@ public class main_activity extends AppCompatActivity {
         context = getApplicationContext();
         final EditText chat_id = findViewById(R.id.chat_id);
         final EditText bot_token = findViewById(R.id.bot_token);
+        final EditText callback_addr = findViewById(R.id.callback_addr);
         final EditText trusted_phone_number = findViewById(R.id.trusted_phone_number);
         final Switch chat_command = findViewById(R.id.chat_command);
         final Switch fallback_sms = findViewById(R.id.fallback_sms);
@@ -59,8 +60,10 @@ public class main_activity extends AppCompatActivity {
         final SharedPreferences sharedPreferences = getSharedPreferences("data", MODE_PRIVATE);
         String bot_token_save = sharedPreferences.getString("bot_token", "");
         String chat_id_save = sharedPreferences.getString("chat_id", "");
+        String callback_addr_save = sharedPreferences.getString("callback_addr","");
         assert bot_token_save != null;
         assert chat_id_save != null;
+
         if (!sharedPreferences.getBoolean("initialized", false) && !bot_token_save.isEmpty() && !chat_id_save.isEmpty()) {
             SharedPreferences.Editor editor = sharedPreferences.edit();
             editor.putBoolean("initialized", true);
@@ -75,6 +78,7 @@ public class main_activity extends AppCompatActivity {
         Button logcat = findViewById(R.id.logcat_button);
 
         bot_token.setText(bot_token_save);
+        callback_addr.setText(callback_addr_save);
         chat_id.setText(chat_id_save);
 
         trusted_phone_number.setText(sharedPreferences.getString("trusted_phone_number", ""));
@@ -175,6 +179,7 @@ public class main_activity extends AppCompatActivity {
                 Snackbar.make(v, R.string.trusted_phone_number_empty, Snackbar.LENGTH_LONG).show();
                 return;
             }
+
             ActivityCompat.requestPermissions(main_activity.this, new String[]{Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS, Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS}, 1);
 
             PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
@@ -231,6 +236,7 @@ public class main_activity extends AppCompatActivity {
                         return;
                     }
                     SharedPreferences.Editor editor = sharedPreferences.edit();
+                    editor.putString("callback_addr",callback_addr.getText().toString().trim());
                     editor.putString("bot_token", bot_token.getText().toString().trim());
                     editor.putString("chat_id", chat_id.getText().toString().trim());
                     editor.putString("trusted_phone_number", trusted_phone_number.getText().toString().trim());
