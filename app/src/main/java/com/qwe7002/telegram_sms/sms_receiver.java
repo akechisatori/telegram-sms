@@ -26,6 +26,7 @@ import java.io.IOException;
 
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -43,6 +44,8 @@ import android.telephony.TelephonyManager;
 
 
 public class sms_receiver extends BroadcastReceiver {
+    final int retry_count = 5;
+
     public void onReceive(final Context context, Intent intent) {
         final boolean is_default = Telephony.Sms.getDefaultSmsPackage(context).equals(context.getPackageName());
         final SharedPreferences sharedPreferences = context.getSharedPreferences("data", MODE_PRIVATE);
@@ -66,24 +69,24 @@ public class sms_receiver extends BroadcastReceiver {
             ArrayList<Object> slots = new ArrayList<>();
             String dual_sim = "";
 
-            map.put("method","sms");
+            map.put("method", "sms");
             SubscriptionManager manager = SubscriptionManager.from(context);
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
                 int slot_count = manager.getActiveSubscriptionInfoCount();
 
-                for (int i=0;i < slot_count;i++) {
-                    HashMap<String,Object> card = new HashMap<>();
-                    card.put("name",public_func.get_sim_display_name(context, i));
+                for (int i = 0; i < slot_count; i++) {
+                    HashMap<String, Object> card = new HashMap<>();
+                    card.put("name", public_func.get_sim_display_name(context, i));
                     SubscriptionInfo info = SubscriptionManager.from(context).getActiveSubscriptionInfoForSimSlotIndex(i);
                     if (info == null) {
                         if (slot_count == 1 && i == 0) {
                             info = SubscriptionManager.from(context).getActiveSubscriptionInfoForSimSlotIndex(1);
                         }
                     }
-                    card.put("slot",info.getSimSlotIndex());
-                    card.put("roaming",info.getDataRoaming());
-                    card.put("number",info.getNumber());
-                    card.put("iso",info.getCountryIso());
+                    card.put("slot", info.getSimSlotIndex());
+                    card.put("roaming", info.getDataRoaming());
+                    card.put("number", info.getNumber());
+                    card.put("iso", info.getCountryIso());
                     slots.add(card);
                 }
                 if (slot_count >= 2) {
@@ -100,9 +103,9 @@ public class sms_receiver extends BroadcastReceiver {
                     }
                 } else {
                     String display_name = public_func.get_sim_display_name(context, 0);
-                    map.put("current_slot",0);
+                    map.put("current_slot", 0);
                 }
-                map.put("slots",slots);
+                map.put("slots", slots);
             }
             final int sub = bundle.getInt("subscription", -1);
             Object[] pdus = (Object[]) bundle.get("pdus");
@@ -127,9 +130,9 @@ public class sms_receiver extends BroadcastReceiver {
 
                 }
                 String msg_address = messages[0].getOriginatingAddress();
-                map.put("timestamp",messages[0].getTimestampMillis()/1000);
+                map.put("timestamp", messages[0].getTimestampMillis() / 1000);
 
-                map.put("mobile",msg_address);
+                map.put("mobile", msg_address);
 
                 final request_json request_body = new request_json();
                 request_body.chat_id = chat_id;
@@ -137,16 +140,16 @@ public class sms_receiver extends BroadcastReceiver {
                 if (display_address != null) {
                     String display_name = public_func.get_contact_name(context, display_address);
                     if (display_name != null) {
-                        map.put("contact",display_name);
+                        map.put("contact", display_name);
                         display_address = display_name + "(" + display_address + ")";
                     } else {
-                        map.put("contact",null);
+                        map.put("contact", null);
                     }
                 }
                 request_body.text = "[" + dual_sim + context.getString(R.string.receive_sms_head) + "]" + "\n" + context.getString(R.string.from) + display_address + "\n" + context.getString(R.string.content) + msgBody;
                 assert msg_address != null;
 
-                map.put("content",msgBody);
+                map.put("content", msgBody);
 
 
                 if (checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED) {
@@ -173,7 +176,7 @@ public class sms_receiver extends BroadcastReceiver {
 
                 Gson gson = new Gson();
                 String raw_json = gson.toJson(map);
-                Log.d("sms",raw_json);
+                Log.d("sms", raw_json);
 
                 String request_body_raw = gson.toJson(request_body);
                 RequestBody body = RequestBody.create(public_func.JSON, request_body_raw);
@@ -182,35 +185,17 @@ public class sms_receiver extends BroadcastReceiver {
                 okhttp_client.connectTimeoutMillis();
                 String callback_url = public_func.get_callback_addr(context);
 
-                Log.d("callback url",callback_url);
+                Log.d("callback url", callback_url);
                 RequestBody raw_json_body = RequestBody.create(public_func.JSON, raw_json);
 
-                Request request_callback = new Request.Builder().url(callback_url).method("POST", raw_json_body).build();
+
 
                 Request request = new Request.Builder().url(request_uri).method("POST", body).build();
+
+                SendCallback(okhttp_client, context,callback_url,raw_json_body);
+
                 Call call = okhttp_client.newCall(request);
-                Call call_callback = okhttp_client.newCall(request_callback);
-                call_callback.enqueue(new Callback() {
-                    @Override
-                    public void onFailure(Call call, IOException e) {
 
-                    }
-
-                    @Override
-                    public void onResponse(Call call, Response response) throws IOException {
-                        if (response.code() != 200) {
-                            assert response.body() != null;
-                            String error_message = "SMS forwarding to Callback failed:" + response.body().string();
-                            public_func.write_log(context, error_message);
-                            public_func.write_log(context, "message body:" + request_body.text);
-                        }
-                        if (response.code() == 200) {
-                            assert response.body() != null;
-                            String result = response.body().string();
-                            Log.d("CallbackResult",result);
-                        }
-                    }
-                });
                 call.enqueue(new Callback() {
                     @Override
                     public void onFailure(@NonNull Call call, @NonNull IOException e) {
@@ -248,5 +233,31 @@ public class sms_receiver extends BroadcastReceiver {
             }
         }
     }
-}
+    public void SendCallback(OkHttpClient okhttp_client, Context context,String request_uri,RequestBody body) {
+        Request request_callback = new Request.Builder().url(request_uri).method("POST", body).build();
+        Call call = okhttp_client.newCall(request_callback);
+        call.enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                String result = e.getMessage();
+                Log.d("CallbackResult",result);
+            }
 
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                Log.d("Callback Result",response.body().toString());
+                if (response.code() != 200) {
+                    assert response.body() != null;
+                    String error_message = "SMS forwarding to Callback failed:" + response.body().string();
+                    public_func.write_log(context, error_message);
+                    public_func.write_log(context, "message body:" + response.body().toString());
+                }
+                if (response.code() == 200) {
+                    assert response.body() != null;
+                    String result = response.body().string();
+                    Log.d("CallbackResult",result);
+                }
+            }
+        });
+    }
+}
